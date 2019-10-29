@@ -39,8 +39,6 @@
 set -e
 set +o posix
 
-featdir=`pwd`/fbank
-
 
 
 root_data_dir=/lan/ibdata/SPEECH_DATABASE/voxceleb1

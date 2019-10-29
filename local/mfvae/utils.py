@@ -1,7 +1,7 @@
 import pdb
 import os
 import sys
-import subprocess, io, threading
+# import subprocess, io, threading
 import kaldi_io
 import numpy as np
 from pprint import pprint
@@ -73,39 +73,39 @@ class ConfigBase(object):
       object.__setattr__(self, key, arg)
 
 
-def save_predict_result(predict_result, dataset, opath2result, normalize=True):
-  """
-    format result and save it to opath2result
-    the output should be formated as follows.
-    
-    Kazak Kazak_F0101033 6.049543
-    Tibet Kazak_F0101033 1.100619
-    Uyghu Kazak_F0101033 5.243432
-    ct Kazak_F0101033 -0.9423696
-    id Kazak_F0101033 -3.326587
-    ja Kazak_F0101033 -0.8206892
-    ko Kazak_F0101033 -3.42079
-    ru Kazak_F0101033 3.852252
-    vi Kazak_F0101033 -2.77112
-    zh Kazak_F0101033 -0.8504514
-    ...
- 
-    Note that the first two columns should have exactly the same format as above.
-    Otherwise, it will cause logical bugs when the result is further used in other bash sciprts.
-  """
-  # lang_list = ['Kazak', 'Tibet', 'Uyghu', 'ct', 'id', 'ja', 'ko', 'ru', 'vi', 'zh']
-  # lang_len = len(lang_list)
-
-  num_utts, num_spks = predict_result.shape
-  if True==normalize:
-    predict_result = softmax(predict_result, axis=1)
-  assert dataset.num_utts == num_utts, "number of utts mismatches!"
-  assert dataset.num_spks == num_spks, "number of spks mismatches!"
-  print(">> Save score result to %s" %opath2result)
-  with open(opath2result, 'w') as f:
-    for utt_idx, uttid in enumerate(dataset.uttids):
-      for lan_idx, lang in enumerate(dataset.int2lan.values()):
-        f.write("%s %s %.6f\n" %(lang, uttid, predict_result[utt_idx, lan_idx]))
+# def save_predict_result(predict_result, dataset, opath2result, normalize=True):
+#   """
+#     format result and save it to opath2result
+#     the output should be formated as follows.
+#     
+#     Kazak Kazak_F0101033 6.049543
+#     Tibet Kazak_F0101033 1.100619
+#     Uyghu Kazak_F0101033 5.243432
+#     ct Kazak_F0101033 -0.9423696
+#     id Kazak_F0101033 -3.326587
+#     ja Kazak_F0101033 -0.8206892
+#     ko Kazak_F0101033 -3.42079
+#     ru Kazak_F0101033 3.852252
+#     vi Kazak_F0101033 -2.77112
+#     zh Kazak_F0101033 -0.8504514
+#     ...
+#  
+#     Note that the first two columns should have exactly the same format as above.
+#     Otherwise, it will cause logical bugs when the result is further used in other bash sciprts.
+#   """
+#   # lang_list = ['Kazak', 'Tibet', 'Uyghu', 'ct', 'id', 'ja', 'ko', 'ru', 'vi', 'zh']
+#   # lang_len = len(lang_list)
+# 
+#   num_utts, num_spks = predict_result.shape
+#   if True==normalize:
+#     predict_result = softmax(predict_result, axis=1)
+#   assert dataset.num_utts == num_utts, "number of utts mismatches!"
+#   assert dataset.num_spks == num_spks, "number of spks mismatches!"
+#   print(">> Save score result to %s" %opath2result)
+#   with open(opath2result, 'w') as f:
+#     for utt_idx, uttid in enumerate(dataset.uttids):
+#       for lan_idx, lang in enumerate(dataset.int2lan.values()):
+#         f.write("%s %s %.6f\n" %(lang, uttid, predict_result[utt_idx, lan_idx]))
 
 
 # ## deprecated
