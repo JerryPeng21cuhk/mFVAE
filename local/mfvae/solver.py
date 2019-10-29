@@ -1,3 +1,9 @@
+# Copyright        2018 Jerry Peng
+# Apache 2.0
+
+# This script provides a template to train NN models. It will be further used
+# in train_mfvae.py script.
+
 from torch.autograd import Variable
 import torch.nn as nn
 import torch

@@ -2,6 +2,7 @@ import torch
 from math import ceil
 from torch.utils.data.sampler import Sampler
 
+## 2018 Jerry Peng
 
 class RandomBatchSampler(Sampler):
   """Sample blocks(batches) of sorted elments randomly. If without replacement, then sample from a blockwise shuffled dataset.

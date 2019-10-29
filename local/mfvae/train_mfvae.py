@@ -1,3 +1,8 @@
+# Copyright     2019 Jerry Peng
+# Apache 2.0
+
+# This script is used for training NN model.
+
 from model import mFVAE
 from torch.autograd import Variable
 import torch.nn as nn
@@ -60,17 +65,10 @@ class Solver(SolverBase):
   def __init__(self, train_loader, config):
     SolverBase.__init__(self, train_loader, config)
     # Model Configuration
-    # self.num_spks = config.num_spks
     self.feat_dim = config.feat_dim
-    # self.frame_num_thresh = config.frame_num_thresh
     self.cluster_num = config.cluster_num
     self.embed_dim = config.embed_dim
     self.bnf_feat_dim = config.bnf_feat_dim
-    # self.latent_dim = config.latent_dim
-    # self.clust_downsample = config.clust_downsample
-    # self.feat_downsample = config.feat_downsample
-    # self.left_context = config.left_context
-    # self.right_context = config.right_context
 
     self.adam_beta1 = config.adam_beta1
     self.adam_beta2 = config.adam_beta2
@@ -129,8 +127,8 @@ class Solver(SolverBase):
   def train(self):
     train_loader = self.dataloader
     # lr
-    init_lr = self.init_lr  # 1e-4
-    end_lr = self.end_lr  # 1e-5
+    init_lr = self.init_lr
+    end_lr = self.end_lr
     lrs = self.exp_decayed_lr(init_lr, end_lr, self.num_epochs)
     print(lrs)
 
@@ -148,8 +146,7 @@ class Solver(SolverBase):
         feat2d = feat2d.to(self.root_device)
         # with torch.autograd.set_detect_anomaly(True):
         label_loss, reg_qy, reg_qw, qy_ideal = self.model(feat2d)
-        train_loss = label_loss # + reg_qw * 0.1
-        # train_loss = label_loss + qy_ideal + 0.1 * discrim_loss
+        train_loss = label_loss
         # backward
         self.reset_grad()
         train_loss.backward()
@@ -166,7 +163,6 @@ class Solver(SolverBase):
                                                    "reg_qw", reg_qw.item(),
                                                    "qy_ideal", qy_ideal.item())
           print(log)
-        # del train_loss, entropy
       self.save_model(epoch+1)
       # if True == self.earlystopping.stop(valid_loss_acc):
       #   break

@@ -1,11 +1,40 @@
 #!/bin/bash
-# 2018 jerrypeng
+# 2018-2019 jerrypeng
 
-# This script try the modified resnet34 on voxceleb1 
-# No data augmentation, no pretraining
-# It serves as the implementation of paper:
-#   Exploring the Encoding Layer and loss function in End-to-end
-# 	speaker and language recognition system
+# This script implements mFVAE.
+# For the details, pls refer to paper: 
+#   mixture factorized auto-encoder for unsupervised hierarchical deep factorization of speech signal
+
+# Speaker verification experiment is carried on VoxCeleb 1.
+# There is no data augmentation
+
+# mFAE is implemented in file: local/mfvae/model.py
+# You can make slight revisions of:
+##  local/mfvae/train_mfvae.py
+##  local/mfvae/extract_embeddings.py
+##  local/mfvae/extract_posteriors.py
+#  in order to carry out experments of mFAE.
+
+## Besides, some pykaldi executables are implemented to calculate the
+##   stats of posteriors. They are in local/pykaldi-bin directory.
+
+## The codes in this repository are the clean-up of voxceleb-tdnn-s2pretrain.
+## voxceleb-tdnn-s2pretrain implements:
+##    data augmentation, 
+##    appending i-vector as input to frame tokenizer
+##    FHVAE discriminative loss for utterance embedder
+##    pairwise classification loss on embeddings
+##    conditional feature reconstruction for ZeroSpeech 2017
+##    ApplyCmvnSliding(This seems problematic, need further investigation)
+##    read_gmm_model for GMM-CNN embedder.
+##    multi-head attention for mFAE
+##    VAD mask for regression loss
+##    self-supervsied speaker embeddings
+##    mFVAE without reparameterization trick on categorical distribution 
+##                                    (slow and results in GPU mem overflow)
+##
+## I delete all these unnecessary functions in this repository.
+
 
 set -e
 set +o posix
@@ -16,6 +45,8 @@ featdir=`pwd`/fbank
 
 root_data_dir=/lan/ibdata/SPEECH_DATABASE/voxceleb1
 stage=1
+log_filename="temp.log"
+modelname="mfvae"
 
 gpu_idxs="\"\""
 mfccdir=`pwd`/mfcc
@@ -25,18 +56,13 @@ bnf_feat_dim=64
 feat_dim=30
 resume_epoch=0
 num_epochs=50
-log_filename="temp.log"
 gmvn_apply=True
 gmvn_norm_vars=True
 # cmvn_reverse=False
 gmvn_stats_rxfilename=data/train/gmvn_stats
-modelname="mfvae"
 path2model=exp/$modelname/model/${num_epochs}.mdl
 trials=data/voxceleb1_trials_sv
-
-mode=train #debug
-
-mkdir -p exp/unsup_vae/log
+mkdir -p exp/$modelname/log
 
 . ./cmd.sh
 . ./path.sh
@@ -101,8 +127,7 @@ if [ $stage -le 2 ]; then
 fi
 
 if [ $stage -le 3 ]; then
-  $cpu_cmd $
-    # Average the utterance-level xvectors to get speaker-level embeddings.
+  # Average the utterance-level xvectors to get speaker-level embeddings.
   echo "$0: computing mean of embeddings for each speaker"
   $cmd exp/$modelname/train_embed_vectors/log/speaker_mean.log \
     ivector-mean ark:data/train/spk2utt scp:exp/$modelname/train_embed_vectors/embeddings.scp \
@@ -157,7 +182,6 @@ fi
 
 if [ $stage -le 6 ]; then
   # Get result using the out-of-domain PLDA model.
-
   $cpu_cmd exp/$modelname/scores/log/plda_scoring.log \
     ivector-plda-scoring --normalize-length=true \
       "ivector-copy-plda --smoothing=0.0 exp/$modelname/train_embed_vectors/plda - |" \

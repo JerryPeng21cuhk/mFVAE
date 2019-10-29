@@ -118,40 +118,40 @@ def save_predict_result(predict_result, dataset, opath2result, normalize=True):
 #   return fgmm
 
 
-def save_utt_embeddings(embeddings, dataset, oembed_dir):
-  from kaldi.util.table import VectorWriter
-  if not os.path.exists(oembed_dir):
-    os.makedirs(oembed_dir)
-  # embed_arkscp = 'ark:| copy-vector ark:- ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
-  embed_arkscp = 'ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
-  assert len(dataset.uttids) == embeddings.shape[0], "#embeddings({0}) doesn't match dataset #uttids{1}".format(embeddings.shape[0], len(dataset.uttids))
-  with VectorWriter(embed_arkscp) as vector_writer:
-    for utt_idx, uttid in enumerate(dataset.uttids):
-      vector_writer[uttid] = embeddings[utt_idx]
-  # with kaldi_io.open_or_fd(embed_arkscp, 'wb') as f:
-  #   for utt_idx, uttid in enumerate(dataset.uttids):
-  #     kaldi_io.write_vec_flt(f, embeddings[utt_idx], key=uttid)
-  print(">> Saved utterance embeddings to %s" %embed_arkscp)
-
-
-def save_spk_embeddings(ipath2uttembed_scp, ipath2spk2utt,  oembed_dir):
-  if not os.path.exists(oembed_dir):
-    os.makedirs(oembed_dir)
-  def cleanup(proc, cmd):
-    ret = proc.wait()
-    if ret > 0:
-      raise SubprocessFailed('cmd %s returned %d !' % (cmd,ret))
-    return
-  # compute speaker-level embeddings
-  # spkembed_arkscp = "\'ark:| copy-vector ark:- ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp\'".format(oembed_dir)
-  spkembed_arkscp = "ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp".format(oembed_dir)
-  cmd = "ivector-mean ark:{0} scp:{1} {2} ark,t:{3}/num_utts.ark".format(ipath2spk2utt, ipath2uttembed_scp,
-    spkembed_arkscp, oembed_dir)
-  proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-  thread = threading.Thread(target=cleanup, args=(proc, cmd))
-  thread.start()
-  thread.join() # wait the thread finish
-  print(">> Saved speaker embeddings to %s" %spkembed_arkscp)
+# def save_utt_embeddings(embeddings, dataset, oembed_dir):
+#   from kaldi.util.table import VectorWriter
+#   if not os.path.exists(oembed_dir):
+#     os.makedirs(oembed_dir)
+#   # embed_arkscp = 'ark:| copy-vector ark:- ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
+#   embed_arkscp = 'ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
+#   assert len(dataset.uttids) == embeddings.shape[0], "#embeddings({0}) doesn't match dataset #uttids{1}".format(embeddings.shape[0], len(dataset.uttids))
+#   with VectorWriter(embed_arkscp) as vector_writer:
+#     for utt_idx, uttid in enumerate(dataset.uttids):
+#       vector_writer[uttid] = embeddings[utt_idx]
+#   # with kaldi_io.open_or_fd(embed_arkscp, 'wb') as f:
+#   #   for utt_idx, uttid in enumerate(dataset.uttids):
+#   #     kaldi_io.write_vec_flt(f, embeddings[utt_idx], key=uttid)
+#   print(">> Saved utterance embeddings to %s" %embed_arkscp)
+# 
+# 
+# def save_spk_embeddings(ipath2uttembed_scp, ipath2spk2utt,  oembed_dir):
+#   if not os.path.exists(oembed_dir):
+#     os.makedirs(oembed_dir)
+#   def cleanup(proc, cmd):
+#     ret = proc.wait()
+#     if ret > 0:
+#       raise SubprocessFailed('cmd %s returned %d !' % (cmd,ret))
+#     return
+#   # compute speaker-level embeddings
+#   # spkembed_arkscp = "\'ark:| copy-vector ark:- ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp\'".format(oembed_dir)
+#   spkembed_arkscp = "ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp".format(oembed_dir)
+#   cmd = "ivector-mean ark:{0} scp:{1} {2} ark,t:{3}/num_utts.ark".format(ipath2spk2utt, ipath2uttembed_scp,
+#     spkembed_arkscp, oembed_dir)
+#   proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+#   thread = threading.Thread(target=cleanup, args=(proc, cmd))
+#   thread.start()
+#   thread.join() # wait the thread finish
+#   print(">> Saved speaker embeddings to %s" %spkembed_arkscp)
 
 
 def auto_gpus_select(maxGpuNum):

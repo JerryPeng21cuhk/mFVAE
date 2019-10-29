@@ -43,7 +43,6 @@ class Evaluation(object):
     self.log_dir = config.log_dir
     # Model Configuration
     self.feat_dim = config.feat_dim
-    # self.num_spks = config.num_spks
     self.cluster_num = config.cluster_num
     self.embed_dim = config.embed_dim
     self.bnf_feat_dim = config.bnf_feat_dim
@@ -124,7 +123,6 @@ class Evaluation(object):
 
 
 def main(config):
-  # from utils import save_utt_embeddings, save_spk_embeddings
   dataset = get_dataset(config.data_dir, config)
   dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size,
                             shuffle=False, num_workers=config.num_workers, drop_last=False)

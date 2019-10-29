@@ -4,42 +4,27 @@ import torch
 import numpy as np
 import kaldi_io
 from torch.utils.data import Dataset, DataLoader
-# from torchvision import transforms, utils
 from os.path import join
 from utils import ConfigBase, Logger
 import pdb
 from kaldi.util.table import RandomAccessMatrixReader, MatrixWriter, SequentialMatrixReader, SequentialIntReader, RandomAccessVectorReader
 from kaldi.transform.cmvn import Cmvn
-# import errno
 from random import randint
 # from kaldi.feat._feature_functions import SlidingWindowCmnOptions, sliding_window_cmn
 
-# This script load the fbanks for each utterance.
-# In addition, this script adds data agumentation in the feature map as
-# an option and attempts to boost its performance.
 
 class Config(ConfigBase):
   def __init__(self):
     super(Config, self).__init__()
     self.dataloader_config = "======Data Preprocessing Configuration======"
-    # self.num_spks = 1251
     self.feat_dim = 64
     self.frame_num_thresh = 4000
     self.data_crop = False
     self.sort_utts = False
-    # self.cmvn_apply_global = True
-    # self.cmvn_norm_vars = False
-    # self.cmvn_reverse = False
-    # self.cmvn_stats_rxfilename = ""
     self.gmvn_apply = True
     self.gmvn_norm_vars = False
     self.gmvn_stats_rxfilename = ""
-    # self.vad_label = False
-    # self.use_ivec = False
-    # self.data_aug = False
-    # self.spk_label = True
-    # self.train_cln_data_dir = 'data/train'
-
+    
 
 def scp2dict(ipath2scp):
   fd = kaldi_io.open_or_fd(ipath2scp)  # ipath2scp can be a pipeline
@@ -155,53 +140,25 @@ class MyDataset(Dataset):
     # load dicts
     uttids = list(scp2dict(feats_scp))
     num_utts = len(uttids)
-
-    # # create labels
-    # utt2spk = scp2dict(utt2spk_scp)
-    # if config.spk_label:
-    #   spks = utt2spk.values()
-    #   ints = []
-    #   # Only for voxceleb1
-    #   for spk in spks:
-    #     ints.append(int(spk[-4:])-1)
-    #   utt2intspk = dict(zip(utt2spk.keys(), ints))
-    #   self.utt2intspk = utt2intspk
-    
+   
     self.gmvn_apply = config.gmvn_apply
     self.gmvn_norm_vars = config.gmvn_norm_vars
     if self.gmvn_apply:
       gmvn = Cmvn()
       gmvn.read_stats(config.gmvn_stats_rxfilename)
       self.gmvn_normalizer = gmvn
-    # self.spk_label = config.spk_label
-    # self.vad_label = config.vad_label
-    # self.vad_scp = vad_scp
     self.feats_scp = feats_scp
-    # self.use_ivec = config.use_ivec
-    # self.ivec_scp = ivec_scp
     self.sort_utts = config.sort_utts
     self.uttids = uttids 
     self.num_utts = num_utts
     self.feat_dim = config.feat_dim
-    # self.num_spks = config.num_spks
     self.frame_num_thresh = config.frame_num_thresh
     self.data_crop = config.data_crop
-    # self.data_aug = config.data_aug
-    # self.cln_feats_scp = config.train_cln_data_dir + '/feats.scp'
 
     print("Loading dataset...")
     assert os.path.isfile(feats_scp), \
         "{} not found. Exit!".format(feats_scp)
     self.utt2feats = self.read_utt2feats(feats_scp)
-    # if self.data_aug:
-    #   assert os.path.isfile(self.cln_feats_scp), \
-    #     "{} not found. Exit!".format(self.cln_feats_scp)
-    #   self.utt2clnfeats = self.read_utt2feats(self.cln_feats_scp)
-    # if self.vad_label:
-    #   self.utt2vad = self.read_utt2vads(vad_scp)
-    # assert False == (self.vad_label and self.use_ivec)
-    # if self.use_ivec:
-    #   self.utt2ivec = self.read_utt2ivec(ivec_scp)
 
   def __len__(self):
     return self.num_utts
@@ -241,7 +198,6 @@ class MyDataset(Dataset):
         Utts in each batch share similar  durations.
         To add some randomness, a noise dur (0~100s) is involved in sorting.
     """
-    # SequentialIntReader or RandomAccessIntReader
     with SequentialIntReader("ark:feat-to-len scp:{} ark:-|".format(feats_scp)) as utt2len:
       noise = 10000  # to add randomness within a minibatch
       list_utt_dur = [(utt, length+randint(0, noise))
@@ -256,10 +212,7 @@ class MyDataset(Dataset):
 
 
 def get_dataset(data_dir, config):
-  # ipath2label = "{0}/utt2spk".format(data_dir)
   feats_scp = "{0}/feats.scp".format(data_dir)
-  # vad_scp = "{0}/vad.scp".format(data_dir)
-  # ivec_scp = "{0}/ivector.scp".format(data_dir)
   dataset = MyDataset(feats_scp, config)
   return dataset
 
