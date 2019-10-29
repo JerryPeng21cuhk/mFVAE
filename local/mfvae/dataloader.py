@@ -6,7 +6,7 @@ import kaldi_io
 from torch.utils.data import Dataset, DataLoader
 # from torchvision import transforms, utils
 from os.path import join
-from utils import ConfigBase, read_gmm_model, Logger
+from utils import ConfigBase, Logger
 import pdb
 from kaldi.util.table import RandomAccessMatrixReader, MatrixWriter, SequentialMatrixReader, SequentialIntReader, RandomAccessVectorReader
 from kaldi.transform.cmvn import Cmvn
@@ -169,7 +169,7 @@ class MyDataset(Dataset):
     
     self.gmvn_apply = config.gmvn_apply
     self.gmvn_norm_vars = config.gmvn_norm_vars
-    if self.gmvn_apply_global:
+    if self.gmvn_apply:
       gmvn = Cmvn()
       gmvn.read_stats(config.gmvn_stats_rxfilename)
       self.gmvn_normalizer = gmvn
@@ -211,12 +211,12 @@ class MyDataset(Dataset):
     # feats is np.array with shape (num_frame, feat_dim)
     feats = self.utt2feats[uttid]
     if self.gmvn_apply:
-      self.global_normalizer.apply(feats, norm_vars=self.gmvn_norm_vars)
+      self.gmvn_normalizer.apply(feats, norm_vars=self.gmvn_norm_vars)
     feats = self.fix_feats_num(feats.numpy(), self.frame_num_thresh)
     if self.data_crop:
       feats = self.random_crop_frame(feats, num_frames_thresh=300)
     label = 0  # compatible to PadCollate/CropCollate
-   return torch.FloatTensor(feats), torch.LongTensor([label]).squeeze_()
+    return torch.FloatTensor(feats), torch.LongTensor([label]).squeeze_()
   
   def random_crop_frame(self, feats, num_frames_thresh=100):
     num_frame = feats.shape[0]

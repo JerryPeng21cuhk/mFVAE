@@ -135,8 +135,8 @@ class QW_xvec(nn.Module):
 
 
 class PX(nn.Module):
-  """ p(xit|yit, wi), Given Tcwi+mu, predict xit [L2 norm only mean] """
-  def __init__(self, K, embed_dim, d, D):
+  """ p(xit|yit, wi), predict xit [L2 norm only mean] """
+  def __init__(self, K, embed_dim, D):
     super(PX, self).__init__()
     self.layer1 = nn.Sequential(
         nn.Linear(embed_dim+3*K, 512),
@@ -198,7 +198,7 @@ class mFVAE(nn.Module):
     self.featCompressor = FrameCompressor(feat_dim=D, output_dim=bnf_feat_dim)
     self.qy = QY(bnf_feat_dim, K)
     self.qw_xvec = QW_xvec(D, embed_dim=embed_dim)
-    self.px = PX(K, embed_dim=embed_dim, d=d, D=D)
+    self.px = PX(K, embed_dim=embed_dim, D=D)
     self.K = K
     self.D = D
     self.embed_dim = embed_dim

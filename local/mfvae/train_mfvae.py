@@ -37,7 +37,7 @@ class Config(DataLoaderConfig, ModelConfig, SolverConfig):
     self.model_save_dir = 'exp/unsup_vae'
     self.gpu_idxs = ""
     self.batch_size = 64
-    self.num_epochs = 50  # to be determined
+    self.num_epochs = 50
     self.resume_epoch = 0
     self.log_step = 150
     self.init_lr = 1e-3
@@ -52,8 +52,8 @@ class Config(DataLoaderConfig, ModelConfig, SolverConfig):
     self.num_workers = 10
     self.train_data_dir = 'data/train'
     self.log_filename = 'unsup_train.log'
-    self.adam_beta1 = 0.9  # to be determined
-    self.adam_beta2 = 0.999  # to be determined
+    self.adam_beta1 = 0.9
+    self.adam_beta2 = 0.999
 
 
 class Solver(SolverBase):
