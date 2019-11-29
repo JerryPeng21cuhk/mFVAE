@@ -14,13 +14,14 @@ import time
 import datetime
 from solver import SolverBase
 import pdb
+import math
 from torch.utils.data import DataLoader
 from dataloader import get_dataset, CropCollate
 from dataloader import Config as DataLoaderConfig
 from sampler import RandomBatchSampler
 from model import Config as ModelConfig
 from solver import Config as SolverConfig
-from utils import auto_gpus_select
+from utils import auto_gpus_select, prepare_device
 
 
 class Config(DataLoaderConfig, ModelConfig, SolverConfig):
@@ -44,14 +45,15 @@ class Config(DataLoaderConfig, ModelConfig, SolverConfig):
     self.batch_size = 64
     self.num_epochs = 50
     self.resume_epoch = 0
-    self.log_step = 150
+    # self.log_step = 150
+    self.num_log_per_epoch = 4
     self.init_lr = 1e-3
     self.end_lr = 1e-4
 
     ## override ModelConfig
     self.cluster_num = 128
     self.embed_dim = 600
-    self.bnf_feat_dim = 64
+    # self.bnf_feat_dim = 64
 
     ## new config
     self.num_workers = 10
@@ -68,7 +70,7 @@ class Solver(SolverBase):
     self.feat_dim = config.feat_dim
     self.cluster_num = config.cluster_num
     self.embed_dim = config.embed_dim
-    self.bnf_feat_dim = config.bnf_feat_dim
+    # self.bnf_feat_dim = config.bnf_feat_dim
 
     self.adam_beta1 = config.adam_beta1
     self.adam_beta2 = config.adam_beta2
@@ -76,7 +78,6 @@ class Solver(SolverBase):
 
     self.model = mFVAE(D=self.feat_dim,
                        K=self.cluster_num,
-                       bnf_feat_dim=self.bnf_feat_dim,
                        embed_dim=self.embed_dim)
 
     # load model
@@ -88,9 +89,9 @@ class Solver(SolverBase):
     else:
       assert self.resume_epoch == 0, "Invalid config: resume_epoch {}".format(
           self.resume_epoch)
+    # if not config.gpu_idxs:
+    #   config.gpu_idxs = ','.join([str(num) for num in auto_gpus_select(1)]) # auto mode
     # send model to GPUs/CPU (2 GPUs at most)
-    if not config.gpu_idxs:
-      config.gpu_idxs = ','.join([str(num) for num in auto_gpus_select(1)]) # auto mode
     self.root_device = self.send_model2device(config.gpu_idxs)
     # optimizer
     self.optimizer = torch.optim.Adam(self.model.parameters(), self.init_lr, [
@@ -98,7 +99,7 @@ class Solver(SolverBase):
     self.print_network(self.model, 'mixture Factorized VAE')
 
   def send_model2device(self, str_cuda_idxs):
-    device, device_ids = self.prepare_device(str_cuda_idxs)
+    device, device_ids = prepare_device(str_cuda_idxs)
     if len(device_ids) > 1:
       self.multi_gpu = True
       self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
@@ -136,6 +137,8 @@ class Solver(SolverBase):
     print('Start training...')
     start_time = time.time()
     self.model.train()  # set to training mode
+    num_batch = len(train_loader)
+    assert self.num_log_per_epoch >= 1
     for epoch in range(self.resume_epoch, self.num_epochs, 1):
       lr = lrs[epoch]  # update lr
       self.update_lr(lr)
@@ -152,7 +155,7 @@ class Solver(SolverBase):
         train_loss.backward()
         self.optimizer.step()
         # Print out training information
-        if (i+1) % self.log_step == 0:
+        if i % math.ceil(num_batch/float(self.num_log_per_epoch)) == 0:
           et = time.time() - start_time
           et = str(datetime.timedelta(seconds=et))[:-7]
           log = "Elapsed [{}], Iteration [{}/{}], Epoch [{}/{}]".format(

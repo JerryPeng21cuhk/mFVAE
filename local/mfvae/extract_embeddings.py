@@ -11,7 +11,8 @@ from dataloader import get_dataset
 from dataloader import Config as DataLoaderConfig
 from model import Config as ModelConfig
 from torch.utils.data import DataLoader
-from utils import auto_gpus_select
+from utils import auto_gpus_select, prepare_device
+from kaldi.util.table import VectorWriter
 
 
 class Config(DataLoaderConfig, ModelConfig):
@@ -45,21 +46,21 @@ class Evaluation(object):
     self.feat_dim = config.feat_dim
     self.cluster_num = config.cluster_num
     self.embed_dim = config.embed_dim
-    self.bnf_feat_dim = config.bnf_feat_dim
+    # self.bnf_feat_dim = config.bnf_feat_dim
 
     self.ipath2model = config.ipath2model
     self.multi_gpu = False
 
     self.model = mFVAE(D=self.feat_dim,
                        K=self.cluster_num,
-                       bnf_feat_dim=self.bnf_feat_dim,
                        embed_dim=self.embed_dim)
 
     self.load_model(self.ipath2model)
-    # # send model to GPUs/CPU (1 GPU at most)
-    if not config.gpu_idxs:
-      config.gpu_idxs = ','.join([str(num) for num in auto_gpus_select(1)]) # auto mode
-    print("select GPU device: {}".format(config.gpu_idxs))
+    # if not config.gpu_idxs:
+    #   config.gpu_idxs = ','.join([str(num) for num in auto_gpus_select(1)]) # auto mode
+    # print("select GPU device: {}".format(config.gpu_idxs))
+
+    # send model to GPUs/CPU (1 GPU at most)
     self.root_device = self.send_model2device(config.gpu_idxs)
     self.print_network(self.model, 'mixture Factorized VAE')
 
@@ -73,34 +74,32 @@ class Evaluation(object):
     print("The number of parameters: {}".format(num_params))
 
   def send_model2device(self, str_cuda_idxs):
-    device, device_ids = self.prepare_device(str_cuda_idxs)
+    device, device_ids = prepare_device(str_cuda_idxs)
     assert len(device_ids) <= 1, \
         "multi-gpu mode for computing embeddings is not supported now"
-    # # self.multi_gpu = True
-    # # self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
     self.model = self.model.to(device)
     return device
 
-  def prepare_device(self, str_cuda_ids):
-    n_gpus = torch.cuda.device_count()
-    cuda_ids = set(int(gpu_idx) for gpu_idx in str_cuda_ids.split(
-        ",") if gpu_idx.strip().isdigit())
-    # Use CPUs.
-    if n_gpus <= 0 or len(cuda_ids) == 0:
-      if len(cuda_ids) > 0:
-        print(
-            "Warning: No GPU available in this device. Evaluation will be performed on CPU.")
-      device = torch.device('cpu')
-      return device, []
-    # Use GPUs.
-    min_cuda_id = min(cuda_ids)
-    assert min_cuda_id >= 0, "Invalid GPU index:{} available on this machine.".format(
-        min_cuda_id)
-    for cuda_id in cuda_ids:
-      assert cuda_id < n_gpus, "There is no GPU:{} available on this machine.".format(
-          cuda_id)
-    device = torch.device('cuda:{}'.format(min_cuda_id))
-    return device, list(cuda_ids)
+  # def prepare_device(self, str_cuda_ids):
+  #   n_gpus = torch.cuda.device_count()
+  #   cuda_ids = set(int(gpu_idx) for gpu_idx in str_cuda_ids.split(
+  #       ",") if gpu_idx.strip().isdigit())
+  #   # Use CPUs.
+  #   if n_gpus <= 0 or len(cuda_ids) == 0:
+  #     if len(cuda_ids) > 0:
+  #       print(
+  #           "Warning: No GPU available in this device. Evaluation will be performed on CPU.")
+  #     device = torch.device('cpu')
+  #     return device, []
+  #   # Use GPUs.
+  #   min_cuda_id = min(cuda_ids)
+  #   assert min_cuda_id >= 0, "Invalid GPU index:{} available on this machine.".format(
+  #       min_cuda_id)
+  #   for cuda_id in cuda_ids:
+  #     assert cuda_id < n_gpus, "There is no GPU:{} available on this machine.".format(
+  #         cuda_id)
+  #   device = torch.device('cuda:{}'.format(min_cuda_id))
+  #   return device, list(cuda_ids)
 
   def load_model(self, ipath2model):
     """Load model
@@ -127,7 +126,9 @@ def main(config):
   dataloader = DataLoader(dataset=dataset, batch_size=config.batch_size,
                             shuffle=False, num_workers=config.num_workers, drop_last=False)
   evaluator = Evaluation(config)
-  embeddings = evaluator.extract_embedding_to_hardisk(dataloader,
+  if not os.path.exists(config.embed_dir):
+    os.makedirs(config.embed_dir)
+  evaluator.extract_embedding_to_hardisk(dataloader,
           'ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(config.embed_dir))
   
 

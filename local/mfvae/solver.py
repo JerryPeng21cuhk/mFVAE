@@ -14,6 +14,7 @@ import time
 import datetime
 import pdb
 from torch.utils.data import DataLoader
+from utils import prepare_device
 
 
 class Config(object):
@@ -21,7 +22,7 @@ class Config(object):
     super(Config, self).__init__()
     self.solver_config = "======Solver Configuration======"
     self.gpu_idxs = ""
-    self.log_step = 150
+    self.num_log_per_epoch = 4
     self.log_dir = ""
     self.batch_size = 16
     self.resume_epoch = 0
@@ -42,35 +43,36 @@ class SolverBase(object):
     self.end_lr = config.end_lr
     self.log_dir = config.log_dir
     self.model_save_dir = config.model_save_dir
-    self.log_step = config.log_step
+    self.num_log_per_epoch = config.num_log_per_epoch
     self.loss_criterion = None
     self.multi_gpu = False
 
   def send_model2device(self, str_cuda_idxs):
-    device, device_ids = self.prepare_device(str_cuda_idxs)
+    device, device_ids = prepare_device(str_cuda_idxs)
     if len(device_ids) > 1:
       self.multi_gpu = True
       self.model = torch.nn.DataParallel(self.model, device_ids=device_ids)
     self.model = self.model.to(device)
     return device
 
-  def prepare_device(self, str_cuda_ids):
-    n_gpus = torch.cuda.device_count()
-    cuda_ids = set(int(gpu_idx) for gpu_idx in str_cuda_ids.split(",") if gpu_idx.strip().isdigit())
-    # Use CPUs.
-    if n_gpus <= 0 or len(cuda_ids) == 0:
-      if len(cuda_ids) > 0:
-        print("Warning: No GPU available in this device. Training iwll be performed on CPU.")
-      device = torch.device('cpu')
-      return device, []
-    # Use GPUs.
-    min_cuda_id = min(cuda_ids)
-    assert min_cuda_id >= 0, "Invalid GPU index:{} available on this machine.".format(min_cuda_id)
-    # pdb.set_trace()
-    for cuda_id in cuda_ids:
-      assert cuda_id < n_gpus, "There is no GPU:{} available on this machine.".format(cuda_id)
-    device = torch.device('cuda:{}'.format(min_cuda_id))
-    return device, list(cuda_ids)
+  # def prepare_device(self, str_cuda_ids):
+  #   n_gpus = torch.cuda.device_count()
+  #   cuda_ids = set(int(gpu_idx) for gpu_idx in str_cuda_ids.split(",") if gpu_idx.strip().isdigit())
+  #   # pdb.set_trace()
+  #   # Use CPUs.
+  #   if n_gpus <= 0 or len(cuda_ids) == 0:
+  #     if len(cuda_ids) > 0:
+  #       print("Warning: No GPU available in this device. Training iwll be performed on CPU.")
+  #     device = torch.device('cpu')
+  #     return device, []
+  #   # Use GPUs.
+  #   min_cuda_id = min(cuda_ids)
+  #   assert min_cuda_id >= 0, "Invalid GPU index:{} available on this machine.".format(min_cuda_id)
+  #   # pdb.set_trace()
+  #   for cuda_id in cuda_ids:
+  #     assert cuda_id < n_gpus, "There is no GPU:{} available on this machine.".format(cuda_id)
+  #   device = torch.device('cuda:{}'.format(min_cuda_id))
+  #   return device, list(cuda_ids)
 
   def print_network(self, model, name):
     """Print out the network information"""

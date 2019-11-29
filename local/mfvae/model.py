@@ -19,7 +19,7 @@ class Config(ConfigBase):
     self.model_config = "======Model Configuration======"
     self.cluster_num = 128  # K
     self.embed_dim = 600
-    self.bnf_feat_dim = 64
+    # self.bnf_feat_dim = 64
 
 
 class SwapDim(nn.Module):
@@ -73,8 +73,10 @@ class QY(nn.Module):
   """ q(y|x) """
   def __init__(self, D, K, temper=0.1):
     super(QY, self).__init__()
+    bnf_feat_dim = 64
+    self.featCompressor = FrameCompressor(feat_dim=D, output_dim=bnf_feat_dim)
     self.fc1 = nn.Sequential(
-      nn.Linear(D, 512),
+      nn.Linear(bnf_feat_dim, 512),
       SwapDim(1, 2),
       nn.BatchNorm1d(512),
       SwapDim(1, 2),
@@ -91,6 +93,7 @@ class QY(nn.Module):
     self.temper = temper
 
   def forward(self, x):
+    x = self.featCompressor(x)
     x = self.fc1(x)
     x = self.fc2(x)
     logits = self.fc3(x)
@@ -193,10 +196,10 @@ class mFVAE(nn.Module):
       In the paper, we only mentioned the trick on y and put this simplification in section:
         from mFVAE to mFAE
   """
-  def __init__(self, D, K, bnf_feat_dim, embed_dim):
+  def __init__(self, D, K, embed_dim):
     super(mFVAE, self).__init__()
-    self.featCompressor = FrameCompressor(feat_dim=D, output_dim=bnf_feat_dim)
-    self.qy = QY(bnf_feat_dim, K)
+    # self.featCompressor = FrameCompressor(feat_dim=D, output_dim=bnf_feat_dim)
+    self.qy = QY(D, K)
     self.qw_xvec = QW_xvec(D, embed_dim=embed_dim)
     self.px = PX(K, embed_dim=embed_dim, D=D)
     self.K = K
@@ -209,9 +212,9 @@ class mFVAE(nn.Module):
     assert L > 14
     L = L - 14
     w, qw_mean, qw_var = self.qw_xvec(x)
-    bnf_x = self.featCompressor(x)
+    # bnf_x = self.featCompressor(x)
     lab_x = x[:,8:-8,:]
-    y, qy, qy_logits = self.qy(bnf_x)
+    y, qy, qy_logits = self.qy(x)
     px_mean = self.px((y, w))
     ent = self.entropy(qy_logits)
     loss_avg_qy = math.log(self.K) - self.entropy(torch.sum(qy_logits, dim=(0,1))/(B*L))
@@ -226,16 +229,16 @@ class mFVAE(nn.Module):
   def get_feat(self, x):
     x, vec = x
     B = x.shape[0]
-    bnf_x = self.featCompressor(x)
-    _, qy, _ = self.qy(bnf_x)
+    # bnf_x = self.featCompressor(x)
+    _, qy, _ = self.qy(x)
     # w, qw_mean, qw_var = self.qw_xvec(x)
     non_info_embed = vec.unsqueeze(0).expand((B, -1))
     px_mean = self.px((qy, non_info_embed))
     return px_mean
 
   def get_post(self, x):
-    bnf_x = self.featCompressor(x)
-    _, qy, _ = self.qy(bnf_x)
+    # bnf_x = self.featCompressor(x)
+    _, qy, _ = self.qy(x)
     return qy
 
   def get_embed(self, x):
@@ -246,7 +249,7 @@ class mFVAE(nn.Module):
 class mFAE(mFVAE):
   """ Inspired by i-vector method
   """
-  def __init__(self, D, K, bnf_feat_dim, embed_dim):
+  def __init__(self, D, K, embed_dim):
     super(mFAE, self).__init__()
 
   def forward(self, x):
@@ -254,9 +257,9 @@ class mFAE(mFVAE):
     assert L > 16
     L = L - 16
     w, qw_mean, qw_var = self.qw_xvec(x)
-    bnf_x = self.featCompressor(x)
+    # bnf_x = self.featCompressor(x)
     lab_x = x[:,8:-8,:]
-    y, qy, qy_logits = self.qy(bnf_x)
+    y, qy, qy_logits = self.qy(x)
     px_mean = self.px((y, qw_mean))
     loss_label = torch.sum((lab_x - px_mean)**2)
     loss_label = 0.5 * loss_label / (B*L) + self.D / 2.0 * math.log(2*math.pi)

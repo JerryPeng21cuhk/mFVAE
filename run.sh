@@ -50,7 +50,7 @@ gpu_idxs="\"\""
 mfccdir=`pwd`/mfcc
 cluster_num=128
 embed_dim=600
-bnf_feat_dim=64
+# bnf_feat_dim=64
 feat_dim=30
 resume_epoch=0
 num_epochs=50
@@ -76,7 +76,7 @@ if [ $stage -le 0 ]; then
     utils/fix_data_dir.sh $i
   done
 
-  compute-cmvn-stats scp:data/train/feats.scp data/train/cmvn_stats
+  compute-cmvn-stats scp:data/train/feats.scp data/train/gmvn_stats
 fi
 
 if [ $stage -le 1 ]; then
@@ -85,7 +85,7 @@ if [ $stage -le 1 ]; then
                               --num-epochs $num_epochs \
                               --gpu-idxs ${gpu_idxs} \
                               --resume-epoch ${resume_epoch} \
-                              --log-step 500 \
+                              --num-log-per-epoch 4 \
                               --init-lr 1e-3 \
                               --end-lr 1e-4 \
                               --data-crop True \
@@ -94,7 +94,6 @@ if [ $stage -le 1 ]; then
                               --cluster-num ${cluster_num} \
                               --embed-dim ${embed_dim} \
                               --feat-dim ${feat_dim} \
-                              --bnf-feat-dim ${bnf_feat_dim} \
                               --gmvn-apply ${gmvn_apply} \
                               --gmvn-norm-vars ${gmvn_norm_vars} \
                               --gmvn-stats-rxfilename ${gmvn_stats_rxfilename} \
@@ -112,12 +111,12 @@ if [ $stage -le 2 ]; then
                                        --frame-num-thresh 4000 \
                                        --cluster-num ${cluster_num} \
                                        --embed-dim ${embed_dim} \
-                                       --bnf-feat-dim ${bnf_feat_dim} \
                                        --feat-dim ${feat_dim} \
                                        --gmvn-apply ${gmvn_apply} \
                                        --gmvn-norm-vars ${gmvn_norm_vars} \
                                        --gmvn-stats-rxfilename "${gmvn_stats_rxfilename}" \
                                        --ipath2model "${path2model}" \
+                                       --data-dir data/$i \
                                        --log-dir exp/$modelname/log \
                                        --log-filename "extract_${i}_embeddings_${log_filename}" \
                                        --embed-dir exp/$modelname/${i}_embed_vectors
@@ -126,7 +125,6 @@ fi
 
 if [ $stage -le 3 ]; then
   # Average the utterance-level xvectors to get speaker-level embeddings.
-  echo "$0: computing mean of embeddings for each speaker"
   $cmd exp/$modelname/train_embed_vectors/log/speaker_mean.log \
     ivector-mean ark:data/train/spk2utt scp:exp/$modelname/train_embed_vectors/embeddings.scp \
     ark,scp:exp/$modelname/train_embed_vectors/spk_embeddings.ark,exp/$modelname/train_embed_vectors/spk_embeddings.scp ark,t:exp/$modelname/train_embed_vectors/num_utts.ark || exit 1;

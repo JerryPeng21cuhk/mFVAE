@@ -73,87 +73,6 @@ class ConfigBase(object):
       object.__setattr__(self, key, arg)
 
 
-# def save_predict_result(predict_result, dataset, opath2result, normalize=True):
-#   """
-#     format result and save it to opath2result
-#     the output should be formated as follows.
-#     
-#     Kazak Kazak_F0101033 6.049543
-#     Tibet Kazak_F0101033 1.100619
-#     Uyghu Kazak_F0101033 5.243432
-#     ct Kazak_F0101033 -0.9423696
-#     id Kazak_F0101033 -3.326587
-#     ja Kazak_F0101033 -0.8206892
-#     ko Kazak_F0101033 -3.42079
-#     ru Kazak_F0101033 3.852252
-#     vi Kazak_F0101033 -2.77112
-#     zh Kazak_F0101033 -0.8504514
-#     ...
-#  
-#     Note that the first two columns should have exactly the same format as above.
-#     Otherwise, it will cause logical bugs when the result is further used in other bash sciprts.
-#   """
-#   # lang_list = ['Kazak', 'Tibet', 'Uyghu', 'ct', 'id', 'ja', 'ko', 'ru', 'vi', 'zh']
-#   # lang_len = len(lang_list)
-# 
-#   num_utts, num_spks = predict_result.shape
-#   if True==normalize:
-#     predict_result = softmax(predict_result, axis=1)
-#   assert dataset.num_utts == num_utts, "number of utts mismatches!"
-#   assert dataset.num_spks == num_spks, "number of spks mismatches!"
-#   print(">> Save score result to %s" %opath2result)
-#   with open(opath2result, 'w') as f:
-#     for utt_idx, uttid in enumerate(dataset.uttids):
-#       for lan_idx, lang in enumerate(dataset.int2lan.values()):
-#         f.write("%s %s %.6f\n" %(lang, uttid, predict_result[utt_idx, lan_idx]))
-
-
-# ## deprecated
-# def read_gmm_model(model_rxfilename):
-#   from kaldi.util import io as _util_io
-#   from kaldi.gmm import FullGmm as fgmm
-#   with _util_io.xopen(model_rxfilename) as ki:
-#     fgmm = fgmm() # Full-covar GMM
-#     fgmm.read(ki.stream(), ki.binary)
-#   return fgmm
-
-
-# def save_utt_embeddings(embeddings, dataset, oembed_dir):
-#   from kaldi.util.table import VectorWriter
-#   if not os.path.exists(oembed_dir):
-#     os.makedirs(oembed_dir)
-#   # embed_arkscp = 'ark:| copy-vector ark:- ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
-#   embed_arkscp = 'ark,scp:{0}/embeddings.ark,{0}/embeddings.scp'.format(oembed_dir)
-#   assert len(dataset.uttids) == embeddings.shape[0], "#embeddings({0}) doesn't match dataset #uttids{1}".format(embeddings.shape[0], len(dataset.uttids))
-#   with VectorWriter(embed_arkscp) as vector_writer:
-#     for utt_idx, uttid in enumerate(dataset.uttids):
-#       vector_writer[uttid] = embeddings[utt_idx]
-#   # with kaldi_io.open_or_fd(embed_arkscp, 'wb') as f:
-#   #   for utt_idx, uttid in enumerate(dataset.uttids):
-#   #     kaldi_io.write_vec_flt(f, embeddings[utt_idx], key=uttid)
-#   print(">> Saved utterance embeddings to %s" %embed_arkscp)
-# 
-# 
-# def save_spk_embeddings(ipath2uttembed_scp, ipath2spk2utt,  oembed_dir):
-#   if not os.path.exists(oembed_dir):
-#     os.makedirs(oembed_dir)
-#   def cleanup(proc, cmd):
-#     ret = proc.wait()
-#     if ret > 0:
-#       raise SubprocessFailed('cmd %s returned %d !' % (cmd,ret))
-#     return
-#   # compute speaker-level embeddings
-#   # spkembed_arkscp = "\'ark:| copy-vector ark:- ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp\'".format(oembed_dir)
-#   spkembed_arkscp = "ark,scp:{0}/spk_embeddings.ark,{0}/spk_embeddings.scp".format(oembed_dir)
-#   cmd = "ivector-mean ark:{0} scp:{1} {2} ark,t:{3}/num_utts.ark".format(ipath2spk2utt, ipath2uttembed_scp,
-#     spkembed_arkscp, oembed_dir)
-#   proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-#   thread = threading.Thread(target=cleanup, args=(proc, cmd))
-#   thread.start()
-#   thread.join() # wait the thread finish
-#   print(">> Saved speaker embeddings to %s" %spkembed_arkscp)
-
-
 def auto_gpus_select(maxGpuNum):
   from GPUtil import getAvailable
   from time import sleep
@@ -166,3 +85,28 @@ def auto_gpus_select(maxGpuNum):
       sleep(10)
   return gpu_idxs
   
+
+def prepare_device(str_cuda_ids):
+  import torch
+  n_gpus = torch.cuda.device_count()
+  cuda_ids = set(int(gpu_idx) for gpu_idx in str_cuda_ids.split(
+      ",") if gpu_idx.strip().isdigit())
+  # Use CPUs.
+  if n_gpus <= 0: 
+    print("Warning: No GPU available in this device. Evaluation will be performed on CPU.")
+    device = torch.device('cpu')
+    return device, []
+  # not specify gpu id-> try auto select a GPU
+  if len(cuda_ids) == 0:
+    cuda_ids = auto_gpus_select(1)
+  # the smallest cuda id is regarded as root device.
+  min_cuda_id = min(cuda_ids)
+  assert min_cuda_id >= 0, "Invalid GPU index:{} .".format(
+      min_cuda_id)
+  for cuda_id in cuda_ids:
+    assert cuda_id < n_gpus, "GPU(:{} is not available on this machine.".format(
+        cuda_id)
+  device = torch.device('cuda:{}'.format(min_cuda_id))
+  print("Select GPU(s): {}".format(','.join([str(num) for num in list(cuda_ids)])))
+  return device, list(cuda_ids)
+
